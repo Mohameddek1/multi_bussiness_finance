@@ -2,25 +2,660 @@
 
 ## 📚 Table of Contents
 1. [Authentication](#authentication)
-2. [Transaction Categories](#transaction-categories)
-3. [Transactions](#transactions)
-4. [Analytics & Reports](#analytics--reports)
-5. [Inter-Business Transactions](#inter-business-transactions)
-6. [Cash Flow & Balances](#cash-flow--balances)
-7. [Repayments](#repayments)
-8. [Error Handling](#error-handling)
-9. [Postman Test Data](#postman-test-data)
+2. [Business Management](#business-management)
+3. [Transaction Categories](#transaction-categories)
+4. [Transactions](#transactions)
+5. [Analytics & Reports](#analytics--reports)
+6. [Inter-Business Transactions](#inter-business-transactions)
+7. [Cash Flow & Balances](#cash-flow--balances)
+8. [Repayments](#repayments)
+9. [Error Handling](#error-handling)
+10. [Postman Test Data](#postman-test-data)
 
 ---
 
 ## 🔐 Authentication
 
-All endpoints require JWT authentication. Include the token in the Authorization header:
+All endpoints require JWT authentication (except register and login). Include the token in the Authorization header:
 ```
 Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 **Base URL:** `http://localhost:8000/api/`
+
+---
+
+# 🔑 AUTHENTICATION ENDPOINTS
+
+## 1. User Registration
+
+### **POST** `/api/auth/register/`
+Register a new user account.
+
+**Request Body:**
+```json
+{
+    "username": "john_doe",
+    "email": "john@example.com",
+    "password": "securePassword123",
+    "first_name": "John",
+    "last_name": "Doe"
+}
+```
+
+**Field Details:**
+- `username` (string, required): Unique username (3-150 characters)
+- `email` (string, required): Valid email address
+- `password` (string, required): Password (minimum 8 characters)
+- `first_name` (string, optional): User's first name
+- `last_name` (string, optional): User's last name
+
+**Success Response (201):**
+```json
+{
+    "message": "User created successfully",
+    "user": {
+        "id": 1,
+        "username": "john_doe",
+        "email": "john@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "date_joined": "2025-07-07T10:00:00Z"
+    }
+}
+```
+
+**Error Response (400):**
+```json
+{
+    "username": ["A user with that username already exists."],
+    "email": ["Enter a valid email address."],
+    "password": ["This password is too short. It must contain at least 8 characters."]
+}
+```
+
+---
+
+## 2. User Login
+
+### **POST** `/api/auth/login/`
+Login with username and password to receive JWT tokens.
+
+**Request Body:**
+```json
+{
+    "username": "john_doe",
+    "password": "securePassword123"
+}
+```
+
+**Field Details:**
+- `username` (string, required): User's username
+- `password` (string, required): User's password
+
+**Success Response (200):**
+```json
+{
+    "message": "Login successful",
+    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "user": {
+        "id": 1,
+        "username": "john_doe",
+        "email": "john@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "date_joined": "2025-07-07T10:00:00Z"
+    }
+}
+```
+
+**Error Response (401):**
+```json
+{
+    "error": "Invalid username or password"
+}
+```
+
+**Error Response (400):**
+```json
+{
+    "error": "Username and password are required"
+}
+```
+
+---
+
+## 3. Token Refresh
+
+### **POST** `/api/auth/token/refresh/`
+Refresh an expired access token using a refresh token.
+
+**Request Body:**
+```json
+{
+    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+**Error Response (401):**
+```json
+{
+    "detail": "Token is invalid or expired",
+    "code": "token_not_valid"
+}
+```
+
+---
+
+## 4. User Profile
+
+### **GET** `/api/auth/user/`
+Get current authenticated user's profile information.
+
+**Headers Required:**
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Success Response (200):**
+```json
+{
+    "id": 1,
+    "username": "john_doe",
+    "email": "john@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "date_joined": "2025-07-07T10:00:00Z",
+    "last_login": "2025-07-07T11:30:00Z"
+}
+```
+
+---
+
+## 5. User Logout
+
+### **POST** `/api/auth/logout/`
+Logout and blacklist the refresh token.
+
+**Headers Required:**
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Request Body:**
+```json
+{
+    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "message": "Logout successful"
+}
+```
+
+**Error Response (400):**
+```json
+{
+    "error": "Refresh token is required"
+}
+```
+
+**Error Response (400):**
+```json
+{
+    "error": "Invalid token or token already blacklisted"
+}
+```
+
+---
+
+# 🏢 BUSINESS MANAGEMENT
+
+## 1. Business List & Create
+
+### **GET** `/api/businesses/`
+List all businesses where the authenticated user has any role.
+
+**Headers Required:**
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Response Example:**
+```json
+[
+    {
+        "id": 1,
+        "name": "Tech Solutions Inc",
+        "description": "Software development and consulting",
+        "currency": "USD",
+        "fiscal_year_start": "01-01",
+        "default_language": "en",
+        "created_at": "2025-07-01T10:00:00Z",
+        "user_role": "owner"
+    },
+    {
+        "id": 2,
+        "name": "Marketing Pros LLC",
+        "description": "Digital marketing agency",
+        "currency": "USD",
+        "fiscal_year_start": "01-01",
+        "default_language": "en",
+        "created_at": "2025-07-02T14:30:00Z",
+        "user_role": "admin"
+    },
+    {
+        "id": 3,
+        "name": "Consulting Co",
+        "description": "Business consulting services",
+        "currency": "EUR",
+        "fiscal_year_start": "04-01",
+        "default_language": "en",
+        "created_at": "2025-07-03T09:15:00Z",
+        "user_role": "staff"
+    }
+]
+```
+
+### **POST** `/api/businesses/`
+Create a new business (user automatically becomes owner).
+
+**Request Body:**
+```json
+{
+    "name": "My New Business",
+    "description": "A great business venture",
+    "currency": "USD",
+    "fiscal_year_start": "01-01",
+    "default_language": "en"
+}
+```
+
+**Field Details:**
+- `name` (string, required): Business name (max 200 characters)
+- `description` (string, optional): Business description (max 1000 characters)
+- `currency` (string, optional): Currency code (default: "USD")
+- `fiscal_year_start` (string, optional): Fiscal year start (MM-DD format, default: "01-01")
+- `default_language` (string, optional): Language code (default: "en")
+
+**Success Response (201):**
+```json
+{
+    "message": "Business created successfully",
+    "business": {
+        "id": 4,
+        "name": "My New Business",
+        "description": "A great business venture",
+        "currency": "USD",
+        "fiscal_year_start": "01-01",
+        "default_language": "en",
+        "owner": {
+            "id": 1,
+            "username": "john_doe",
+            "email": "john@example.com"
+        },
+        "created_at": "2025-07-07T12:00:00Z",
+        "updated_at": "2025-07-07T12:00:00Z"
+    }
+}
+```
+
+---
+
+## 2. Business Details
+
+### **GET** `/api/businesses/{business_id}/`
+Retrieve details of a specific business.
+
+**Parameters:**
+- `business_id` (URL): Business ID
+
+**Success Response (200):**
+```json
+{
+    "id": 1,
+    "name": "Tech Solutions Inc",
+    "description": "Software development and consulting",
+    "currency": "USD",
+    "fiscal_year_start": "01-01",
+    "default_language": "en",
+    "owner": {
+        "id": 1,
+        "username": "john_doe",
+        "email": "john@example.com"
+    },
+    "created_at": "2025-07-01T10:00:00Z",
+    "updated_at": "2025-07-01T10:00:00Z"
+}
+```
+
+### **PUT** `/api/businesses/{business_id}/`
+Update business details (owners and admins only).
+
+**Permissions:** Only owners and admins can update business details.
+
+**Request Body:**
+```json
+{
+    "name": "Tech Solutions Inc - Updated",
+    "description": "Premium software development and consulting services",
+    "currency": "EUR"
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "id": 1,
+    "name": "Tech Solutions Inc - Updated",
+    "description": "Premium software development and consulting services",
+    "currency": "EUR",
+    "fiscal_year_start": "01-01",
+    "default_language": "en",
+    "owner": {
+        "id": 1,
+        "username": "john_doe",
+        "email": "john@example.com"
+    },
+    "created_at": "2025-07-01T10:00:00Z",
+    "updated_at": "2025-07-07T12:30:00Z"
+}
+```
+
+**Error Response (403):**
+```json
+{
+    "error": "You do not have permission to edit this business"
+}
+```
+
+### **DELETE** `/api/businesses/{business_id}/`
+Delete a business (owners only).
+
+**Permissions:** Only business owners can delete businesses.
+
+**Success Response (204):** No content
+
+**Error Response (403):**
+```json
+{
+    "error": "Only business owners can delete businesses"
+}
+```
+
+---
+
+## 3. Business Users Management
+
+### **GET** `/api/businesses/{business_id}/users/`
+List all users who have access to a specific business.
+
+**Parameters:**
+- `business_id` (URL): Business ID
+
+**Permissions:** Must have access to the business.
+
+**Response Example:**
+```json
+[
+    {
+        "id": 1,
+        "user": {
+            "id": 1,
+            "username": "john_doe",
+            "email": "john@example.com",
+            "first_name": "John",
+            "last_name": "Doe"
+        },
+        "business": {
+            "id": 1,
+            "name": "Tech Solutions Inc"
+        },
+        "role": "owner",
+        "assigned_by": null,
+        "assigned_at": "2025-07-01T10:00:00Z"
+    },
+    {
+        "id": 2,
+        "user": {
+            "id": 2,
+            "username": "jane_admin",
+            "email": "jane@example.com",
+            "first_name": "Jane",
+            "last_name": "Smith"
+        },
+        "business": {
+            "id": 1,
+            "name": "Tech Solutions Inc"
+        },
+        "role": "admin",
+        "assigned_by": {
+            "id": 1,
+            "username": "john_doe"
+        },
+        "assigned_at": "2025-07-02T14:20:00Z"
+    },
+    {
+        "id": 3,
+        "user": {
+            "id": 3,
+            "username": "bob_staff",
+            "email": "bob@example.com",
+            "first_name": "Bob",
+            "last_name": "Johnson"
+        },
+        "business": {
+            "id": 1,
+            "name": "Tech Solutions Inc"
+        },
+        "role": "staff",
+        "assigned_by": {
+            "id": 1,
+            "username": "john_doe"
+        },
+        "assigned_at": "2025-07-03T11:45:00Z"
+    }
+]
+```
+
+---
+
+## 4. Assign User to Business
+
+### **POST** `/api/businesses/{business_id}/assign-user/`
+Assign a user to a business by email address.
+
+**Parameters:**
+- `business_id` (URL): Business ID
+
+**Permissions:** Only owners and admins can assign users.
+
+**Request Body:**
+```json
+{
+    "email": "newuser@example.com",
+    "role": "staff"
+}
+```
+
+**Field Details:**
+- `email` (string, required): Email address of existing user
+- `role` (string, required): Role to assign ("admin" or "staff")
+
+**Available Roles:**
+- `owner`: Full control (automatically assigned to business creator)
+- `admin`: Can manage users, transactions, and business settings
+- `staff`: Can only add income transactions
+
+**Success Response (201):**
+```json
+{
+    "message": "User newuser@example.com assigned as staff to Tech Solutions Inc",
+    "assignment": {
+        "id": 4,
+        "user": {
+            "id": 4,
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "first_name": "New",
+            "last_name": "User"
+        },
+        "business": {
+            "id": 1,
+            "name": "Tech Solutions Inc"
+        },
+        "role": "staff",
+        "assigned_by": {
+            "id": 1,
+            "username": "john_doe"
+        },
+        "assigned_at": "2025-07-07T13:00:00Z"
+    }
+}
+```
+
+**Error Responses:**
+
+**User not found (400):**
+```json
+{
+    "email": ["User with this email does not exist"]
+}
+```
+
+**User already assigned (400):**
+```json
+{
+    "email": ["User is already assigned to this business"]
+}
+```
+
+**Permission denied (403):**
+```json
+{
+    "error": "You do not have permission to assign users to this business"
+}
+```
+
+**Invalid role (400):**
+```json
+{
+    "role": ["Role must be either 'admin' or 'staff'"]
+}
+```
+
+---
+
+## 5. Remove User from Business
+
+### **DELETE** `/api/businesses/{business_id}/remove-user/{user_id}/`
+Remove a user's access from a business.
+
+**Parameters:**
+- `business_id` (URL): Business ID
+- `user_id` (URL): User ID to remove
+
+**Permissions:** Only owners and admins can remove users.
+
+**Success Response (200):**
+```json
+{
+    "message": "User newuser@example.com removed from Tech Solutions Inc"
+}
+```
+
+**Error Responses:**
+
+**Cannot remove owner (400):**
+```json
+{
+    "error": "Cannot remove the business owner"
+}
+```
+
+**User not found (404):**
+```json
+{
+    "error": "Business or user not found"
+}
+```
+
+**User not assigned (404):**
+```json
+{
+    "error": "User does not have access to this business"
+}
+```
+
+**Permission denied (403):**
+```json
+{
+    "error": "You do not have permission to remove users from this business"
+}
+```
+
+---
+
+## 6. User Businesses Summary
+
+### **GET** `/api/my-businesses/`
+Get a summary of all businesses the authenticated user has access to.
+
+**Headers Required:**
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Response Example:**
+```json
+{
+    "total_businesses": 3,
+    "businesses": [
+        {
+            "id": 1,
+            "name": "Tech Solutions Inc",
+            "currency": "USD",
+            "user_role": "owner",
+            "created_at": "2025-07-01T10:00:00Z",
+            "is_owner": true
+        },
+        {
+            "id": 2,
+            "name": "Marketing Pros LLC",
+            "currency": "USD",
+            "user_role": "admin",
+            "created_at": "2025-07-02T14:30:00Z",
+            "is_owner": false
+        },
+        {
+            "id": 3,
+            "name": "Consulting Co",
+            "currency": "EUR",
+            "user_role": "staff",
+            "created_at": "2025-07-03T09:15:00Z",
+            "is_owner": false
+        }
+    ]
+}
+```
+
+**Field Explanations:**
+- `total_businesses`: Number of businesses user has access to
+- `user_role`: User's role in each business
+- `is_owner`: Boolean indicating if user owns the business
+- `currency`: Business currency for reference
+- `created_at`: When the business was created
 
 ---
 
@@ -1080,9 +1715,40 @@ Get all overdue payments for user's businesses.
 ## Collection Structure
 
 ### 1. Authentication
+- **Register**: `POST {{base_url}}/auth/register/`
+- **Login**: `POST {{base_url}}/auth/login/`
+- **Logout**: `POST {{base_url}}/auth/logout/`
+- **Refresh Token**: `POST {{base_url}}/auth/token/refresh/`
+- **User Profile**: `GET {{base_url}}/auth/user/`
+
+### 2. Business Management
+- **List Businesses**: `GET {{base_url}}/businesses/`
+- **Create Business**: `POST {{base_url}}/businesses/`
+- **Get Business**: `GET {{base_url}}/businesses/{{business_id}}/`
+- **Update Business**: `PUT {{base_url}}/businesses/{{business_id}}/`
+- **Delete Business**: `DELETE {{base_url}}/businesses/{{business_id}}/`
+- **List Business Users**: `GET {{base_url}}/businesses/{{business_id}}/users/`
+- **Assign User**: `POST {{base_url}}/businesses/{{business_id}}/assign-user/`
+- **Remove User**: `DELETE {{base_url}}/businesses/{{business_id}}/remove-user/{{user_id}}/`
+- **My Businesses**: `GET {{base_url}}/my-businesses/`
+
+### 3. Categories
 - **Login**: `POST {{base_url}}/auth/login/`
 - **Register**: `POST {{base_url}}/auth/register/`
-- **Refresh Token**: `POST {{base_url}}/auth/refresh/`
+- **Refresh Token**: `POST {{base_url}}/auth/token/refresh/`
+
+### 2. Business Management
+- **List Businesses**: `GET {{base_url}}/businesses/`
+- **Create Business**: `POST {{base_url}}/businesses/`
+- **Get Business**: `GET {{base_url}}/businesses/{{business_id}}/`
+- **Update Business**: `PUT {{base_url}}/businesses/{{business_id}}/`
+- **Delete Business**: `DELETE {{base_url}}/businesses/{{business_id}}/`
+- **List Business Users**: `GET {{base_url}}/businesses/{{business_id}}/users/`
+- **Assign User**: `POST {{base_url}}/businesses/{{business_id}}/assign-user/`
+- **Remove User**: `DELETE {{base_url}}/businesses/{{business_id}}/remove-user/{{user_id}}/`
+- **My Businesses**: `GET {{base_url}}/my-businesses/`
+
+### 3. Categories
 
 ### 2. Categories
 - **List Categories**: `GET {{base_url}}/businesses/{{business_id}}/categories/`
@@ -1114,6 +1780,44 @@ Get all overdue payments for user's businesses.
 - **Overdue Payments**: `GET {{base_url}}/overdue-payments/`
 
 ## Sample Test Data
+
+### User Registration
+```json
+{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "testpass123",
+    "first_name": "Test",
+    "last_name": "User"
+}
+```
+
+### User Login
+```json
+{
+    "username": "testuser",
+    "password": "testpass123"
+}
+```
+
+### Create Business
+```json
+{
+    "name": "Test Business Inc",
+    "description": "A test business for API testing",
+    "currency": "USD",
+    "fiscal_year_start": "01-01",
+    "default_language": "en"
+}
+```
+
+### Assign User to Business
+```json
+{
+    "email": "newuser@example.com",
+    "role": "admin"
+}
+```
 
 ### Create Category
 ```json
