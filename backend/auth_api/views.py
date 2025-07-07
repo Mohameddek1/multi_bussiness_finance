@@ -52,11 +52,13 @@ class LoginView(generics.GenericAPIView):
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
+            user_data = UserSerializer(user).data
             
             return Response({
                 'message': 'Login successful',
                 'access_token': str(access_token),
-                'refresh_token': str(refresh)
+                'refresh_token': str(refresh),
+                'user': user_data
             }, status=status.HTTP_200_OK)
         else:
             return Response({
